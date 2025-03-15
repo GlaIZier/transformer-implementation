@@ -1,2 +1,3 @@
-torch==2.4.*
+torch==2.6.*
 jupyterlab==4.2.*
+git+https://github.com/GlaIZier/minbpe-tokenizer.git@main
