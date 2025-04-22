@@ -52,6 +52,7 @@ class MHSA(nn.Module):
         # attn = attn.view(b, self.h, t, self.dh).permute(0, 2, 1, 3).reshape(b, t, d)
         attn = attn.view(b, self.h, t, self.dh).transpose(1, 2).contiguous().view(b, t, d)
         wo = self.wo(attn)
+        # -> b t d
         return wo
         # # 1 2 3 4
         # x = F.relu(self.conv1(x))
