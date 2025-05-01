@@ -13,13 +13,14 @@ class EncoderLayer(nn.Module):
         self.ff1 = nn.Linear(d, d * 4)
         self.ff2 = nn.Linear(d * 4, d)
         self.norm2 = nn.LayerNorm(d)
-        self.dropout = nn.Dropout(dropout)
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         b, t, d = x.size()
-        x = x + self.dropout(self.mhsa(x, x, x))
+        x = x + self.attn_dropout(self.mhsa(x, x, x))
         x = self.norm1(x)
-        x = x + self.dropout(self.ff2(F.relu(self.ff1(x))))
+        x = x + self.resid_dropout(self.ff2(F.relu(self.ff1(x))))
         x = self.norm2(x)
         return x
 
