@@ -18,3 +18,5 @@ logs
 .ipynb_checkpoints
 **/.snakemake
 node_modules
+
+model/
