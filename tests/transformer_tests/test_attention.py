@@ -43,3 +43,50 @@ def test_attention():
     print(f"a: \n {a}")
     print(f"a.shape: \n {a.shape}")
     assert a.shape == (2, 2, 3, 4) # b h t d
+
+def test_attention_mask():
+    # mask is equal to making keys on masked places 0:
+    # the result in terms of masked symbols is the same
+    x = torch.rand([2, 3, 2, 4])
+    k = x.clone()
+    k[0, 2, 0, :] = float("-inf")
+    k[0, 2, 1, :] = float("-inf")
+    k[1, 2, 0, :] = float("-inf")
+    k[1, 1, 0, :] = float("-inf")
+    k[1, 2, 1, :] = float("-inf")
+    k[1, 1, 1, :] = float("-inf")
+    print(f"k: \n {k}")
+    a = self_attention(x, k, x, verbose=True)
+    print(f"a: \n {a}")
+    print(f"a.shape: \n {a.shape}")
+    assert a.shape == (2, 2, 3, 4)  # b h t d
+    # a is the same shape as if mask was applied in q * k:
+
+    test = torch.rand([2, 3, 4])
+    test[0, 2, :] = 0
+    test[1, 1, :] = 0
+    test[1, 2, :] = 0
+
+    print(f"test: \n {test}")
+    test_v = test.view(2, 3, 2, 2)
+    print(f"test_v: \n {test_v}")
+    test_perm = test_v.permute(0, 2, 1, 3)
+    print(f"test_perm: \n {test_perm}")
+
+    # or like that:
+    test_q = torch.rand([2, 3, 4])
+    test_k = test_q.clone()
+    test_k[0, 2, :] = float("-inf")
+    test_k[1, 1, :] = float("-inf")
+    test_k[1, 2, :] = float("-inf")
+    print(f"test_k: \n {test_k}")
+
+    test_q_view = test_q.view(2, 3, 2, 2)
+    test_k_view = test_k.view(2, 3, 2, 2)
+    print(f"test_k_view: \n {test_k_view}")
+    test_q_perm = test_q_view.permute(0, 2, 1, 3)
+    test_k_perm = test_k_view.permute(0, 2, 1, 3)
+    print(f"test_k_perm: \n {test_k_perm}")
+    qk = torch.einsum("bhtd, bhsd -> bhts", test_q_perm, test_k_perm)
+    print(f"q * k: \n {qk}")
+    assert qk.shape == (2, 2, 3, 3)  # b h t s
