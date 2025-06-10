@@ -1,6 +1,7 @@
 import torch
 
-from transformer.attention import self_attention
+from transformer.attention import self_attention, MHSA
+from transformer.mask import reshape_mask, build_causal_mask
 
 
 def test_attention():
@@ -90,3 +91,14 @@ def test_attention_mask():
     qk = torch.einsum("bhtd, bhsd -> bhts", test_q_perm, test_k_perm)
     print(f"q * k: \n {qk}")
     assert qk.shape == (2, 2, 3, 3)  # b h t s
+
+def test_mhsa():
+    mhsa_masked = MHSA(h=2, d=6)
+    x = torch.rand(4, 5)
+    mask = reshape_mask(build_causal_mask(x))
+    print(mask)
+    x = torch.rand(4, 5, 6)
+    att = mhsa_masked(x, x, x, mask=mask)
+    print(att)
+    print(att.shape)
+    assert att.shape == x.shape  # b t d

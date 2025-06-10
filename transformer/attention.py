@@ -42,7 +42,7 @@ def self_attention(q, k, v, mask=None, verbose=False):
 
 
 
-class MHSA(nn.Module):
+class MHSAUnmasked(nn.Module):
     def __init__(self, d: int = 512, h: int = 8):
         super().__init__()
         assert d % h == 0
@@ -85,4 +85,45 @@ class MHSA(nn.Module):
         # return F.relu(self.conv2(x))
 
 
+class MHSA(nn.Module):
+    def __init__(self, d: int = 512, h: int = 8):
+        super().__init__()
+        assert d % h == 0
+        self.d = d
+        self.dh = d // h
+        self.h = h
+        self.wq = nn.Linear(self.d, self.d)
+        self.wk = nn.Linear(self.d, self.d)
+        self.wv = nn.Linear(self.d, self.d)
+        self.wo = nn.Linear(self.d, self.d)
+
+    def forward(self, q, k, v, mask=None):
+        # q and k/v might be of different sizes if lengths of decoder and encoders inputs are different
+        bq, tq, dq = q.size()
+        bk, tk, dk = k.size()
+        wq = self.wq(q)
+        wk = self.wk(k)
+        wv = self.wv(v)
+        wq = wq.view(bq, tq, self.h, self.dh)
+        wk = wk.view(bk, tk, self.h, self.dh)
+        wv = wv.view(bk, tk, self.h, self.dh)
+        # b, t, h, dh
+        # if changing from 4 dim -> 3 dim: b*h, t, dh
+        # wq = wq.permute(0, 2, 1, 3).reshape(b * self.h, t, self.dh)
+        # wk = wk.permute(0, 2, 1, 3).reshape(b * self.h, t, self.dh)
+        # wv = wv.permute(0, 2, 1, 3).reshape(b * self.h, t, self.dh)
+        # another option 4 dim -> 3 dim
+        # wq = wq.transpose(1, 2).contiguous().view(b * self.h, t, self.dh)
+        # wk = wk.transpose(1, 2).contiguous().view(b * self.h, t, self.dh)
+        # wv = wv.transpose(1, 2).contiguous().view(b * self.h, t, self.dh)
+        # changing the number of dims is not necessary as @ supports 4 dims
+        attn = self_attention(wq, wk, wv, mask=mask)
+        # b * h, t, dh
+        # attn = attn.view(b, self.h, t, self.dh).permute(0, 2, 1, 3).reshape(b, t, d)
+        attn = attn.view(bq, self.h, tq, self.dh).transpose(1, 2).contiguous().view(bq, tq, dq)
+        wo = self.wo(attn)
+        return wo
+        # # 1 2 3 4
+        # x = F.relu(self.conv1(x))
+        # return F.relu(self.conv2(x))
 
