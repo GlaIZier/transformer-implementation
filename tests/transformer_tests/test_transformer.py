@@ -62,3 +62,25 @@ def test_transformer_inference():
     predicted_list = predicted.tolist()
     predicted_decoded = [encoding.decode(l) for l in predicted_list]
     print(f"predicted decoded: \n {predicted_decoded}")
+
+def test_transformer_generate():
+    # Predicting next words
+    encoding = tiktoken.get_encoding("cl100k_base")
+    sent = "This is a simple sentence"
+    encoded_sent = encoding.encode(sent)
+    enc_x = torch.tensor(encoded_sent).unsqueeze(0)
+    dec_x = torch.tensor(encoding.encode("C")).unsqueeze(0)
+
+    transformer = Transformer(vocab_size=encoding.n_vocab, n=3, d=256, h=4)
+
+    predicted_tokens = []
+    for _ in range(5):
+        output = transformer(enc_x=enc_x, dec_x=dec_x)
+        softmaxed = F.softmax(output, dim=-1)
+        predicted = softmaxed.argmax(dim=-1)
+        predicted_tokens.append(predicted.tolist()[-1][-1])
+        dec_x = torch.cat((dec_x, predicted), dim=-1)
+
+    print(predicted_tokens)
+    assert len(predicted_tokens) == 5
+    print(f"predicted sentence: \n {encoding.decode(predicted_tokens)}")
