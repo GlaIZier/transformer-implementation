@@ -1,4 +1,6 @@
-from transformer.data import EnFrDataset, Partition, TokEnFrDataset
+from torch.utils.data import DataLoader
+
+from transformer.data import EnFrDataset, Partition, TokEnFrDataset, collate
 
 
 def test_en_fr_dataset():
@@ -32,3 +34,13 @@ def test_tok_en_fr_dataset():
         if i > 2:
             break
         print(d)
+
+def test_collate():
+    dataset = TokEnFrDataset("../../data/eng_-french-nano.csv", val_ratio=0.3)
+    training_generator = DataLoader(dataset, collate_fn=collate, batch_size=5, num_workers=0)
+    for batch in training_generator:
+        print(batch)
+        assert len(batch) == 5
+        assert batch[0].dim() == batch[1].dim()
+        assert batch[2].dim() == batch[1].dim()
+        break

@@ -4,7 +4,12 @@ from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
 
+import torch
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+
+from transformer.mask import build_padding_mask
 
 
 class Partition(Enum):
@@ -101,7 +106,7 @@ class EnFrDataset(Dataset):
 class TokEnFrDataset(Dataset):
 
     @staticmethod
-    def build_train_sample(tokenizer, en_str: str, dec_str: str):
+    def build_train_sample(en_str: str, dec_str: str, tokenizer):
         en_encoded = tokenizer.tokenize(en_str)
         dec_encoded = tokenizer.tokenize(dec_str)
         dec_encoded.append(Tokens.END_NUM.value)
@@ -128,7 +133,7 @@ class TokEnFrDataset(Dataset):
         val_id = 0
         i = 0
         for en, fr in self._dataset:
-            for sample in self.build_train_sample(tokenizer, en, fr):
+            for sample in self.build_train_sample(en, fr, tokenizer):
                 self._data.append(sample)
                 if int(i * val_ratio) == int((i - 1) * val_ratio):
                     self._train_map[train_id] = i
@@ -152,3 +157,14 @@ class TokEnFrDataset(Dataset):
     def __getitem__(self, idx):
         return self._data[self._train_map[idx]] if self._partition == Partition.TRAIN else self._data[
             self._val_map[idx]]
+
+
+def collate(batch):
+    # print(batch)
+    _x, _y, _label = list(zip(*batch))
+    enc_x = pad_sequence([torch.tensor(t) for t in _x], batch_first=True, padding_value=Tokens.PAD_NUM.value)
+    dec_x = pad_sequence([torch.tensor(t) for t in _y], batch_first=True, padding_value=Tokens.PAD_NUM.value)
+    label = pad_sequence([torch.tensor(t) for t in _label], batch_first=True, padding_value=Tokens.PAD_NUM.value)
+    enc_mask = build_padding_mask(enc_x, pad_token=Tokens.PAD_NUM.value)
+    dec_mask = build_padding_mask(dec_x, pad_token=Tokens.PAD_NUM.value)
+    return enc_x, dec_x, label, enc_mask, dec_mask

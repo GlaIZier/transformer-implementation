@@ -1,6 +1,7 @@
-torch==2.6.*
+torch==2.7.*
 jupyterlab==4.2.*
-tiktoken==0.9.0
+tiktoken==0.9.*
+typer-slim==0.16.*
 # torch doesn't need it but spews a warning without it when num_workers > 0 in DataLoader
 numpy==2.2.6
 tqdm==4.67.1
