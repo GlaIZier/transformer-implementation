@@ -26,7 +26,7 @@ class Tokenizer:
     def vocab_size(self):
         pass
 
-    def special_tokens(self):
+    def get_special_tokens(self):
         pass
 
 
@@ -63,7 +63,7 @@ class Tiktokenizer(Tokenizer):
     def vocab_size(self):
         return self.encoding.n_vocab
 
-    def special_tokens(self):
+    def get_special_tokens(self):
         return self.special_tokens
 
 class MinBpeTokenizer(Tokenizer):
@@ -79,7 +79,7 @@ class MinBpeTokenizer(Tokenizer):
     def vocab_size(self):
         return len(self.tokenizer)
 
-    def special_tokens(self):
+    def get_special_tokens(self):
         return self.special_tokens
 
 
@@ -102,7 +102,7 @@ class EnFrDataset(Dataset):
                 if i == -1:
                     continue
                 en = row[0]
-                fr = tokenizer.special_tokens().start + row[1]
+                fr = tokenizer.get_special_tokens().start + row[1]
                 self._data.append(tuple([en, fr]))
                 if int(i * val_ratio) == int((i - 1) * val_ratio):
                     self._train_map[train_id] = i
@@ -149,7 +149,7 @@ class TokEnFrDataset(Dataset):
     def build_train_sample(en_str: str, dec_str: str, tokenizer):
         en_encoded = tokenizer.tokenize(en_str)
         dec_encoded = tokenizer.tokenize(dec_str)
-        dec_encoded.append(tokenizer.special_tokens().end_num)
+        dec_encoded.append(tokenizer.get_special_tokens().end_num)
         en_sents = []
         dec_sents = []
         target_sents = []
@@ -161,7 +161,7 @@ class TokEnFrDataset(Dataset):
         return list(zip(en_sents, dec_sents, target_sents))
 
     def __init__(self, file: Path | str, tokenizer: Tokenizer = Tiktokenizer("cl100k_base"), partition: Partition = Partition.TRAIN, val_ratio: float = 0.1):
-        self._dataset = EnFrDataset(file, partition, val_ratio=0)
+        self._dataset = EnFrDataset(file, tokenizer=tokenizer, partition=partition, val_ratio=0)
         # partition = TRAIN | VAL
         self._partition = partition
         self._val_ratio = val_ratio

@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 
-from transformer.data import EnFrDataset, Partition, TokEnFrDataset, collate
+from transformer.data import EnFrDataset, Partition, TokEnFrDataset, get_collate_fn, Tiktokenizer
 
 
 def test_en_fr_dataset():
@@ -36,8 +36,9 @@ def test_tok_en_fr_dataset():
         print(d)
 
 def test_collate():
+    tokenizer = Tiktokenizer()
     dataset = TokEnFrDataset("../../data/eng_-french-nano.csv", val_ratio=0.3)
-    training_generator = DataLoader(dataset, collate_fn=collate, batch_size=5, num_workers=0)
+    training_generator = DataLoader(dataset, collate_fn=get_collate_fn(tokenizer.get_special_tokens().pad_num), batch_size=5, num_workers=0)
     for batch in training_generator:
         print(batch)
         assert len(batch) == 5
