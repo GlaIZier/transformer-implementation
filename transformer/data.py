@@ -5,8 +5,9 @@ from enum import Enum
 from pathlib import Path
 
 import torch
+from minbpe_tokenizer import data
+from minbpe_tokenizer.tokenizer import SpecialTokenizer, RegexTokenizer
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
 from transformer.mask import build_padding_mask
@@ -16,36 +17,75 @@ class Partition(Enum):
     TRAIN = "train"
     VAL = "val"
 
-
 class Tokenizer:
 
     @abstractmethod
     def tokenize(self, text: str) -> list[int]:
         pass
 
+    def vocab_size(self):
+        pass
+
+    def special_tokens(self):
+        pass
+
+
+class SpecialTokens:
+    def __init__(self, tokenizer: Tokenizer):
+        if isinstance(tokenizer, Tiktokenizer):
+            self.start = "START "
+            self.end = tokenizer.encoding.eot_token
+            self.pad = " PAD"
+            self.start_num = 23380
+            self.end_num = 100257
+            self.pad_num = 62854
+        elif isinstance(tokenizer, MinBpeTokenizer):
+            self.start = SpecialTokenizer.START_TOKEN
+            self.end = SpecialTokenizer.END_TOKEN
+            self.pad = SpecialTokenizer.PAD_TOKEN
+            self.start_num = tokenizer.tokenizer._special_vocab_inverted[self.start]
+            self.end_num = tokenizer.tokenizer._special_vocab_inverted[self.end]
+            self.pad_num = tokenizer.tokenizer._special_vocab_inverted[self.pad]
+        else:
+            raise ValueError
+
 
 class Tiktokenizer(Tokenizer):
 
-    def __init__(self, encoding_name: str = ""):
+    def __init__(self, encoding_name: str = "cl100k_base"):
         import tiktoken
         self.encoding = tiktoken.get_encoding(encoding_name)
+        self.special_tokens = SpecialTokens(self)
 
     def tokenize(self, text: str) -> list[int]:
         return self.encoding.encode(text)
 
+    def vocab_size(self):
+        return self.encoding.n_vocab
 
-class Tokens(Enum):
-    START = "START "
-    END = "<|endoftext|>"
-    PAD = " PAD"
-    START_NUM = 23380
-    END_NUM = 100257
-    PAD_NUM = 62854
+    def special_tokens(self):
+        return self.special_tokens
+
+class MinBpeTokenizer(Tokenizer):
+
+    def __init__(self):
+        self.tokenizer = SpecialTokenizer(tokenizer=RegexTokenizer())
+        self.tokenizer.train(data.training_text)
+        self.special_tokens = SpecialTokens(self)
+
+    def tokenize(self, text: str) -> list[int]:
+        return self.tokenizer.encode(text)
+
+    def vocab_size(self):
+        return len(self.tokenizer)
+
+    def special_tokens(self):
+        return self.special_tokens
 
 
 class EnFrDataset(Dataset):
 
-    def __init__(self, file: Path | str, partition: Partition = Partition.TRAIN, val_ratio: float = 0.1):
+    def __init__(self, file: Path | str, tokenizer: Tokenizer = Tiktokenizer("cl100k_base"), partition: Partition = Partition.TRAIN, val_ratio: float = 0.1):
         # partition = TRAIN | VAL
         self._partition = partition
         self._val_ratio = val_ratio
@@ -62,7 +102,7 @@ class EnFrDataset(Dataset):
                 if i == -1:
                     continue
                 en = row[0]
-                fr = Tokens.START.value + row[1]
+                fr = tokenizer.special_tokens().start + row[1]
                 self._data.append(tuple([en, fr]))
                 if int(i * val_ratio) == int((i - 1) * val_ratio):
                     self._train_map[train_id] = i
@@ -109,7 +149,7 @@ class TokEnFrDataset(Dataset):
     def build_train_sample(en_str: str, dec_str: str, tokenizer):
         en_encoded = tokenizer.tokenize(en_str)
         dec_encoded = tokenizer.tokenize(dec_str)
-        dec_encoded.append(Tokens.END_NUM.value)
+        dec_encoded.append(tokenizer.special_tokens().end_num)
         en_sents = []
         dec_sents = []
         target_sents = []
@@ -158,13 +198,14 @@ class TokEnFrDataset(Dataset):
         return self._data[self._train_map[idx]] if self._partition == Partition.TRAIN else self._data[
             self._val_map[idx]]
 
-
-def collate(batch):
-    # print(batch)
-    _x, _y, _label = list(zip(*batch))
-    enc_x = pad_sequence([torch.tensor(t) for t in _x], batch_first=True, padding_value=Tokens.PAD_NUM.value)
-    dec_x = pad_sequence([torch.tensor(t) for t in _y], batch_first=True, padding_value=Tokens.PAD_NUM.value)
-    label = pad_sequence([torch.tensor(t) for t in _label], batch_first=True, padding_value=Tokens.PAD_NUM.value)
-    enc_mask = build_padding_mask(enc_x, pad_token=Tokens.PAD_NUM.value)
-    dec_mask = build_padding_mask(dec_x, pad_token=Tokens.PAD_NUM.value)
-    return enc_x, dec_x, label, enc_mask, dec_mask
+def get_collate_fn(pad_num):
+    def collate(batch):
+        # print(batch)
+        _x, _y, _label = list(zip(*batch))
+        enc_x = pad_sequence([torch.tensor(t) for t in _x], batch_first=True, padding_value=pad_num)
+        dec_x = pad_sequence([torch.tensor(t) for t in _y], batch_first=True, padding_value=pad_num)
+        label = pad_sequence([torch.tensor(t) for t in _label], batch_first=True, padding_value=pad_num)
+        enc_mask = build_padding_mask(enc_x, pad_token=pad_num)
+        dec_mask = build_padding_mask(dec_x, pad_token=pad_num)
+        return enc_x, dec_x, label, enc_mask, dec_mask
+    return collate
