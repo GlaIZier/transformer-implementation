@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 import typer
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from transformer.data import get_collate_fn, TokEnFrDataset, Tiktokenizer, MinBpeTokenizer, Partition, Tokenizer
 from transformer.transformer import Transformer
@@ -26,81 +27,59 @@ class Trainer:
         self.device = device
         self.max_epochs = max_epochs
         self.model_final_path = model_dir.joinpath("model-final-small.pt"),
-        self.model_intermediate_path = model_dir.joinpath("model-intermediate-small.pt")
+        # self.model_intermediate_path = model_dir.joinpath("model-intermediate-small.pt")
         self.log_epoch_freq = log_epoch_freq
 
     def save_model(self, model_path):
         torch.save(self.transformer.state_dict(), model_path)
 
-    def _train_epoch(self, epoch):
-        running_loss = 0.
-        last_loss = 0.
-        best_loss = math.inf
+    def _calc_batch_loss(self, batch):
+        enc_x, dec_x, label, enc_mask, dec_mask = batch
+        enc_x, dec_x, label, enc_mask, dec_mask = (enc_x.to(self.device), dec_x.to(self.device),
+                                                   label.to(self.device), enc_mask.to(self.device),
+                                                   dec_mask.to(self.device))
+        output = self.transformer(enc_x, dec_x, enc_mask=enc_mask, dec_mask=dec_mask)
+        return self.loss_fn(output.view(-1, self.tokenizer.vocab_size()), label.view(-1))
 
+    def _train_epoch(self):
+        running_loss = 0.
         self.transformer.train(True)
         self.dataloader.dataset.partition = Partition.TRAIN
 
         for i, data in enumerate(self.dataloader, 1):
-            enc_x, dec_x, label, enc_mask, dec_mask = data
-            enc_x, dec_x, label, enc_mask, dec_mask = (enc_x.to(self.device), dec_x.to(self.device),
-                                                       label.to(self.device), enc_mask.to(self.device),
-                                                       dec_mask.to(self.device))
             # Clear grads
             self.optimizer.zero_grad()
-
-            output = self.transformer(enc_x, dec_x, enc_mask=enc_mask, dec_mask=dec_mask)
-            loss = self.loss_fn(output.view(-1, self.tokenizer.vocab_size()), label.view(-1))
+            loss = self._calc_batch_loss(data)
             loss.backward()
             self.optimizer.step()
-
             running_loss += loss.item()
-            if i % 1000 == 0:
-                last_loss = running_loss / 1000
-                log.info('Average batch loss: {}'.format(last_loss))
-                running_loss = 0.
-                # if last_loss < best_loss:
-                #     save_model()
 
-            # helps to reduce memory consumption?
-            # if i % 5000 == 0:
-            #     torch.mps.empty_cache()
+        return 0 if running_loss == 0 else running_loss / i
 
-        if epoch % self.log_epoch_freq == 0:
-            log.info('Average epoch loss: {}'.format(last_loss if last_loss > 0 else running_loss / i))
-        return last_loss
-
-    def _validate_epoch(self, epoch):
-        running_vloss = 0.0
+    def _validate_epoch(self):
+        running_vloss = 0.
         self.transformer.eval()
         self.dataloader.dataset.partition = Partition.VAL
 
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
-            for i, vdata in enumerate(self.dataloader):
-                enc_x, dec_x, label, enc_mask, dec_mask = vdata
-                enc_x, dec_x, label, enc_mask, dec_mask = (enc_x.to(self.device), dec_x.to(self.device),
-                                                           label.to(self.device), enc_mask.to(self.device),
-                                                           dec_mask.to(self.device))
-                output = self.transformer(enc_x, dec_x, enc_mask=enc_mask, dec_mask=dec_mask)
-                vloss = self.loss_fn(output.view(-1, self.tokenizer.vocab_size()), label.view(-1))
-                running_vloss += vloss
+            for i, vdata in enumerate(self.dataloader, 1):
+                running_vloss += self._calc_batch_loss(vdata)
 
-        avg_vloss = running_vloss / (i + 1)
-        if epoch % self.log_epoch_freq == 0:
-            log.info('Average valid loss {}'.format(avg_vloss))
-
-        return avg_vloss
+        return 0 if running_vloss == 0 else running_vloss / i
 
     def train(self):
         best_val_loss = math.inf
-        for epoch in range(self.max_epochs + 1, 1):
+        for epoch in tqdm(range(self.max_epochs + 1, 1)):
+            avg_batch_train_loss = self._train_epoch()
             if epoch % self.log_epoch_freq == 0:
-                log.info('EPOCH {}:'.format(epoch))
-            avg_train_loss = self._train_epoch(epoch)
+                log.info('Average epoch {} batch loss: {}'.format(epoch, avg_batch_train_loss))
 
-            avg_val_loss = self._validate_epoch(epoch)
-            if avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
+            avg_batch_val_loss = self._validate_epoch()
+            if epoch % self.log_epoch_freq == 0:
+                log.info('Average epoch {} batch val loss: {}'.format(epoch, avg_batch_val_loss))
+            if avg_batch_val_loss < best_val_loss:
+                best_val_loss = avg_batch_val_loss
                 self.save_model(self.model_final_path)
 
 
@@ -133,6 +112,17 @@ def train(
     transformer = transformer.to(device)
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=tokenizer.get_special_tokens().pad_num)
     optimizer = torch.optim.AdamW(transformer.parameters(), lr=3e-4, weight_decay=1e-4)
+    trainer = Trainer(
+        transformer=transformer,
+        tokenizer=tokenizer,
+        dataloader=dataloader,
+        loss_fn=loss_fn,
+        optimizer=optimizer,
+        device=device,
+        max_epochs=max_epochs,
+        model_dir=model_dir
+    )
+    trainer.train()
 
 
 if __name__ == "__main__":
