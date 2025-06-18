@@ -70,7 +70,7 @@ class Trainer:
 
     def train(self):
         best_val_loss = math.inf
-        for epoch in tqdm(range(self.max_epochs + 1, 1)):
+        for epoch in tqdm(range(1, self.max_epochs + 1)):
             avg_batch_train_loss = self._train_epoch()
             if epoch % self.log_epoch_freq == 0:
                 log.info('Average epoch {} batch loss: {}'.format(epoch, avg_batch_train_loss))
@@ -83,9 +83,10 @@ class Trainer:
                 self.save_model(self.model_final_path)
 
 
+@app.command()
 def train(
-        data: Path = typer.Option(default="../../data/eng_-french-small.csv"),
-        model_dir: Path = typer.Option(default="../../model/"),
+        data: Path = typer.Option(default="data/eng_-french-small.csv"),
+        model_dir: Path = typer.Option(default="model"),
         d: int = typer.Option(default=64),
         n: int = typer.Option(default=2),
         h: int = typer.Option(default=4),
