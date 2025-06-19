@@ -198,14 +198,13 @@ class TokEnFrDataset(Dataset):
         return self._data[self._train_map[idx]] if self._partition == Partition.TRAIN else self._data[
             self._val_map[idx]]
 
-def get_collate_fn(pad_num):
-    def collate(batch):
-        # print(batch)
-        _x, _y, _label = list(zip(*batch))
-        enc_x = pad_sequence([torch.tensor(t) for t in _x], batch_first=True, padding_value=pad_num)
-        dec_x = pad_sequence([torch.tensor(t) for t in _y], batch_first=True, padding_value=pad_num)
-        label = pad_sequence([torch.tensor(t) for t in _label], batch_first=True, padding_value=pad_num)
-        enc_mask = build_padding_mask(enc_x, pad_token=pad_num)
-        dec_mask = build_padding_mask(dec_x, pad_token=pad_num)
-        return enc_x, dec_x, label, enc_mask, dec_mask
-    return collate
+# for partial usage since pickle doesn't handle closures
+def collate(batch, pad_num):
+    # print(batch)
+    _x, _y, _label = list(zip(*batch))
+    enc_x = pad_sequence([torch.tensor(t) for t in _x], batch_first=True, padding_value=pad_num)
+    dec_x = pad_sequence([torch.tensor(t) for t in _y], batch_first=True, padding_value=pad_num)
+    label = pad_sequence([torch.tensor(t) for t in _label], batch_first=True, padding_value=pad_num)
+    enc_mask = build_padding_mask(enc_x, pad_token=pad_num)
+    dec_mask = build_padding_mask(dec_x, pad_token=pad_num)
+    return enc_x, dec_x, label, enc_mask, dec_mask

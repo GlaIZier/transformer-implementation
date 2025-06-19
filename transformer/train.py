@@ -1,5 +1,6 @@
 import logging
 import math
+from functools import partial
 from pathlib import Path
 
 import torch
@@ -7,7 +8,8 @@ import typer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from transformer.data import get_collate_fn, TokEnFrDataset, Tiktokenizer, MinBpeTokenizer, Partition, Tokenizer
+from transformer.data import TokEnFrDataset, Tiktokenizer, MinBpeTokenizer, Partition, Tokenizer, \
+    collate
 from transformer.transformer import Transformer
 
 log = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ class Trainer:
         self.optimizer = optimizer
         self.device = device
         self.max_epochs = max_epochs
-        self.model_final_path = model_dir.joinpath("model-final-small.pt"),
+        self.model_final_path = model_dir.joinpath("model-final-small.pt")
         # self.model_intermediate_path = model_dir.joinpath("model-intermediate-small.pt")
         self.log_epoch_freq = log_epoch_freq
 
@@ -100,7 +102,7 @@ def train(
     tokenizer = Tiktokenizer() if tiktokenizer else MinBpeTokenizer()
     # batch = 16 if memory is not enough
     dataloader_params = {
-        'collate_fn': get_collate_fn(tokenizer.get_special_tokens().pad_num),
+        'collate_fn': partial(collate, pad_num=tokenizer.get_special_tokens().pad_num),
         'batch_size': batch_size,
         'shuffle': True,
         'num_workers': num_workers,
