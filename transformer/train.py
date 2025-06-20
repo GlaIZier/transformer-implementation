@@ -28,7 +28,7 @@ class Trainer:
         self.optimizer = optimizer
         self.device = device
         self.max_epochs = max_epochs
-        self.model_final_path = model_dir.joinpath("model-final-small.pt")
+        self.model_final_path = model_dir.joinpath("model-final-med.pt")
         # self.model_intermediate_path = model_dir.joinpath("model-intermediate-small.pt")
         self.log_epoch_freq = log_epoch_freq
 
@@ -98,6 +98,7 @@ def train(
         num_workers: int = typer.Option(default=1),
         max_epochs: int = typer.Option(default=500),
         tiktokenizer: bool = typer.Option(default=False),
+        log_epoch_freq: int = typer.Option(default=10)
 ):
     tokenizer = Tiktokenizer() if tiktokenizer else MinBpeTokenizer()
     # batch = 16 if memory is not enough
@@ -123,7 +124,8 @@ def train(
         optimizer=optimizer,
         device=device,
         max_epochs=max_epochs,
-        model_dir=model_dir
+        model_dir=model_dir,
+        log_epoch_freq=log_epoch_freq
     )
     trainer.train()
 
