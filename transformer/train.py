@@ -83,6 +83,7 @@ class Trainer:
             if avg_batch_val_loss < best_val_loss:
                 best_val_loss = avg_batch_val_loss
                 self.save_model(self.model_final_path)
+                log.info(f"Model saved to {self.model_final_path} with val loss: {best_val_loss:.4f}")
 
 
 @app.command()
