@@ -22,7 +22,9 @@ class PE(nn.Module):
 
     def forward(self, x):
         b, t, d = x.size()
-        x = x + self.pe[:, : t, :]
+        # print(x.size())
+        x = x + self.pe[:, :t, :]
+        # print(self.pe.size())
         return self.dropout(x)
 
 
@@ -36,6 +38,7 @@ class PEEmbed(nn.Module):
 
     def forward(self, x):
         b, t, d = x.size()
+        print(x.size())
         pos = self.pe(torch.arange(t))
         x = x + pos
         return self.dropout(x)

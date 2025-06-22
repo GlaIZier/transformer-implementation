@@ -20,7 +20,7 @@ app = typer.Typer()
 class Trainer:
 
     def __init__(self, transformer: Transformer, tokenizer: Tokenizer, dataloader: DataLoader, loss_fn, optimizer,
-                 device: str, max_epochs: int, model_dir: Path, log_epoch_freq: int = 10):
+                 device: str, max_epochs: int, model_weights_path: Path, log_epoch_freq: int = 10):
         self.transformer = transformer
         self.tokenizer = tokenizer
         self.dataloader = dataloader
@@ -28,11 +28,10 @@ class Trainer:
         self.optimizer = optimizer
         self.device = device
         self.max_epochs = max_epochs
-        self.model_final_path = model_dir.joinpath("model-final-med.pt")
-        # self.model_intermediate_path = model_dir.joinpath("model-intermediate-small.pt")
+        self.model_weights_path = model_weights_path
         self.log_epoch_freq = log_epoch_freq
 
-    def save_model(self, model_path):
+    def save_model_weights(self, model_path):
         torch.save(self.transformer.state_dict(), model_path)
 
     def _calc_batch_loss(self, batch):
@@ -82,14 +81,14 @@ class Trainer:
                 log.info('Average epoch {} batch val loss: {}'.format(epoch, avg_batch_val_loss))
             if avg_batch_val_loss < best_val_loss:
                 best_val_loss = avg_batch_val_loss
-                self.save_model(self.model_final_path)
-                log.info(f"Model saved to {self.model_final_path} with val loss: {best_val_loss:.4f}")
+                self.save_model_weights(self.model_weights_path)
+                log.info(f"Model saved to {self.model_weights_path} with val loss: {best_val_loss:.4f}")
 
 
 @app.command()
 def train(
         data: Path = typer.Option(default="data/eng_-french-small.csv"),
-        model_dir: Path = typer.Option(default="model"),
+        model_weights_path: Path = typer.Option(default="model/model.pt"),
         d: int = typer.Option(default=64),
         n: int = typer.Option(default=2),
         h: int = typer.Option(default=4),
@@ -125,7 +124,7 @@ def train(
         optimizer=optimizer,
         device=device,
         max_epochs=max_epochs,
-        model_dir=model_dir,
+        model_weights_path=model_weights_path,
         log_epoch_freq=log_epoch_freq
     )
     trainer.train()
