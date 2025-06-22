@@ -28,7 +28,7 @@ class Tokenizer:
 class SpecialTokens:
     def __init__(self, tokenizer: Tokenizer):
         if isinstance(tokenizer, Tiktokenizer):
-            self.start = "START "
+            self.start = "START"
             self.end = tokenizer.encoding.eot_token
             self.pad = " PAD"
             self.start_num = 23380

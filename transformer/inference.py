@@ -35,19 +35,16 @@ def translate(
     enc_x = torch.tensor(encoded_sent).unsqueeze(0)
     enc_x = enc_x.to(device)
     dec_x = torch.tensor(tokenizer.tokenize(tokenizer.get_special_tokens().start)).unsqueeze(0)
-    dec_x = torch.tensor(tokenizer.tokenize("START")).unsqueeze(0)
     dec_x = dec_x.to(device)
 
     predicted_tokens = []
-    for _ in range(512):
+    for _ in range(int(len(sentence) * 1.5)):
         output = transformer(enc_x=enc_x, dec_x=dec_x)
         softmaxed = F.softmax(output, dim=-1)
         predicted = softmaxed.argmax(dim=-1)
-        print(predicted)
         predicted_tokens.append(predicted.tolist()[-1][-1])
-        dec_x = torch.cat((dec_x, predicted), dim=-1)
-        # print(dec_x.size())
-        # print(predicted_tokens)
+        # add the last predicted token to the decoder input
+        dec_x = torch.cat((dec_x, predicted[:, -1].unsqueeze(0)), dim=-1)
         if predicted[-1, -1] == tokenizer.get_special_tokens().end_num:
             break
 

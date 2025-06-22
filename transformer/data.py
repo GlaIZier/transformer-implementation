@@ -1,16 +1,15 @@
 # Dataset
 import csv
-from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
 
 import torch
-from minbpe_tokenizer import data
-from minbpe_tokenizer.tokenizer import SpecialTokenizer, RegexTokenizer
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 from transformer.mask import build_padding_mask
+from transformer.tokenizer import Tokenizer, Tiktokenizer
+
 
 # Todo check seq length cap
 class Partition(Enum):
