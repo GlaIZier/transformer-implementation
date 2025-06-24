@@ -8,8 +8,8 @@ import typer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from transformer.data import TokEnFrDataset, Tiktokenizer, MinBpeTokenizer, Partition, Tokenizer, \
-    collate
+from transformer.data import TokEnFrDataset, Partition, collate
+from transformer.tokenizer import MinBpeTokenizer, Tiktokenizer, Tokenizer
 from transformer.transformer import Transformer
 
 log = logging.getLogger(__name__)
