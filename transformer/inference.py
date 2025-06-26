@@ -13,7 +13,7 @@ app = typer.Typer()
 
 @app.command()
 def translate(
-        sentence: str = typer.Option("Children eat apples with my friends", help="Sentence to translate"),
+        sentence: str = typer.Option("This movie is for children", help="Sentence to translate"),
         model_weights_path: str = typer.Option(default="..model/model.pt", help="Path to the trained model"),
         d: int = typer.Option(default=64),
         n: int = typer.Option(default=2),
