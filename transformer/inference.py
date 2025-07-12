@@ -11,9 +11,10 @@ log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
+@torch.no_grad()
 @app.command()
 def translate(
-        sentence: str = typer.Option("This movie is for children", help="Sentence to translate"),
+        sentence: str = typer.Option("Ask Tom", help="Sentence to translate"),
         model_weights_path: str = typer.Option(default="..model/model.pt", help="Path to the trained model"),
         d: int = typer.Option(default=64),
         n: int = typer.Option(default=2),
@@ -26,6 +27,7 @@ def translate(
     """
     tokenizer = Tiktokenizer() if tiktokenizer else MinBpeTokenizer()
     transformer = Transformer(vocab_size=tokenizer.vocab_size(), n=n, d=d, h=h)
+    transformer.eval()
     transformer.load_state_dict(torch.load(model_weights_path))
     log.info(f"Number of model's params: {sum(p.numel() for p in transformer.parameters())}")
     transformer = transformer.to(device)
@@ -38,6 +40,7 @@ def translate(
     dec_x = dec_x.to(device)
 
     predicted_tokens = []
+    # TODO add params initialization?
     for _ in range(int(len(sentence) * 1.5)):
         output = transformer(enc_x=enc_x, dec_x=dec_x)
         softmaxed = F.softmax(output, dim=-1)
