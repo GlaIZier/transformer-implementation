@@ -44,6 +44,7 @@ def translate(
     for _ in range(int(len(sentence) * 1.5)):
         output = transformer(enc_x=enc_x, dec_x=dec_x)
         softmaxed = F.softmax(output, dim=-1)
+        # might use torch.multinomial to sample from the predicted tokens; output would be different each time
         predicted = softmaxed.argmax(dim=-1)
         predicted_tokens.append(predicted.tolist()[-1][-1])
         # add the last predicted token to the decoder input

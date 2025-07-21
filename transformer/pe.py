@@ -41,6 +41,7 @@ class PEEmbed(nn.Module):
         print(x.size())
         pos = self.pe(torch.arange(t))
         x = x + pos
+        # probably need layer norm here too
         return self.dropout(x)
 
 

@@ -53,10 +53,12 @@ class EncoderLayer(nn.Module):
         self.attn_dropout = nn.Dropout(dropout)
         self.resid_dropout = nn.Dropout(dropout)
 
+    # TODO try to put layer norm before x = x + self.attn_dropout(self.mhsa(x, x, x, mask=self_mask)) and GELU not RELU
     def forward(self, x, self_mask=None):
         # b, t, d = x.size()
         x = x + self.attn_dropout(self.mhsa(x, x, x, mask=self_mask))
         x = self.norm1(x)
+
         x = x + self.resid_dropout(self.ff2(F.relu(self.ff1(x))))
         x = self.norm2(x)
         return x
